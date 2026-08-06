@@ -1,0 +1,7 @@
+{
+  "seed": 42,
+  "runs": {
+    "claude": "claude-42.json",
+    "gemma": "gemma-42.json"
+  }
+}

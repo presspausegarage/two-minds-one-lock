@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Two Minds, One Lock</title>
+<style>
+  :root {
+    --bg: #0a0e14; --panel: #121823; --edge: #1f2a3a; --ink: #cdd6e4;
+    --dim: #6b7a90; --accent: #36d399; --bad: #f87272; --warn: #fbbd23;
+    --glyph: #1b2433; --glyphink: #9fb3d1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+    padding: 18px;
+  }
+  h1 { font-size: 16px; margin: 0 0 2px; letter-spacing: .5px; }
+  .sub { color: var(--dim); font-size: 12px; margin-bottom: 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    background: var(--panel); border: 1px solid var(--edge); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 16px; }
+  .bar label { color: var(--dim); font-size: 12px; }
+  button { background: var(--glyph); color: var(--ink); border: 1px solid var(--edge);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  input[type=file] { color: var(--dim); font-size: 12px; max-width: 230px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .col { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
+    padding: 14px; min-height: 200px; }
+  .col h2 { font-size: 14px; margin: 0 0 2px; }
+  .meta { color: var(--dim); font-size: 12px; margin-bottom: 12px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px;
+    border: 1px solid var(--edge); }
+  .badge.opened { color: var(--accent); border-color: var(--accent); }
+  .badge.locked_out, .badge.gave_up, .badge.error { color: var(--bad); border-color: var(--bad); }
+  .badge.max_turns, .badge.unknown { color: var(--warn); border-color: var(--warn); }
+  .board { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row .n { color: var(--dim); width: 22px; text-align: right; font-size: 11px; }
+  .code { display: flex; gap: 4px; }
+  .g { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px;
+    background: var(--glyph); color: var(--glyphink); border: 1px solid var(--edge); font-weight: 600; }
+  .fb { color: var(--dim); font-size: 12px; }
+  .fb b { color: var(--accent); }
+  .fb i { color: var(--warn); font-style: normal; }
+  .submit.ok { color: var(--accent); } .submit.no { color: var(--bad); }
+  .think { background: #0d121b; border: 1px solid var(--edge); border-radius: 8px;
+    padding: 10px; max-height: 260px; overflow: auto; white-space: pre-wrap;
+    color: #b6c4dc; font-size: 12.5px; }
+  .think .label { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+  .empty { color: var(--dim); padding: 30px 0; text-align: center; }
+  .stat { display: inline-block; margin-right: 14px; color: var(--dim); font-size: 12px; }
+  .stat b { color: var(--ink); }
+</style>
+</head>
+<body>
+  <h1>Two Minds, One Lock</h1>
+  <div class="sub">Same lock, same tools, two minds. Watch whether the better agent <em>visibly</em> out-plays the weaker one.</div>
+
+  <div class="bar">
+    <label>Mind A <input type="file" accept=".json" id="fileA" /></label>
+    <label>Mind B <input type="file" accept=".json" id="fileB" /></label>
+    <button id="play">▶ Play</button>
+    <button id="step">Step ▸</button>
+    <button id="reset">⟲ Reset</button>
+    <label>speed <input type="range" id="speed" min="200" max="2000" value="900" step="100" /></label>
+    <span id="clock" class="stat"></span>
+  </div>
+
+  <div class="grid">
+    <div class="col" id="colA"><div class="empty">Load a run JSON (runs/&lt;backend&gt;-&lt;seed&gt;.json)</div></div>
+    <div class="col" id="colB"><div class="empty">Load a run JSON (runs/&lt;backend&gt;-&lt;seed&gt;.json)</div></div>
+  </div>
+
+<script>
+const state = { A: null, B: null, t: 0, timer: null };
+
+function loadFile(input, slot) {
+  input.addEventListener("change", () => {
+    const f = input.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { try { state[slot] = JSON.parse(r.result); state.t = 0; render(); }
+                       catch (e) { alert("bad JSON: " + e.message); } };
+    r.readAsText(f);
+  });
+}
+loadFile(document.getElementById("fileA"), "A");
+loadFile(document.getElementById("fileB"), "B");
+
+// Try to auto-load if served over http (fetch blocked on file://, ignored silently).
+(async () => {
+  try {
+    const seed = new URLSearchParams(location.search).get("seed") || "42";
+    const m = await fetch(`../runs/manifest-${seed}.json`).then(r => r.ok ? r.json() : null);
+    if (!m) return;
+    const names = Object.values(m.runs);
+    if (names[0]) state.A = await fetch("../runs/" + names[0]).then(r => r.json());
+    if (names[1]) state.B = await fetch("../runs/" + names[1]).then(r => r.json());
+    render();
+  } catch (_) {}
+})();
+
+function glyphRow(n, code) {
+  return `<div class="code">${[...code].map(c => `<span class="g">${c}</span>`).join("")}</div>`;
+}
+
+function renderCol(el, doc, upto) {
+  if (!doc) { el.innerHTML = `<div class="empty">Load a run JSON</div>`; return; }
+  const steps = doc.steps.slice(0, upto);
+  const s = doc.summary, m = doc.meta;
+  let rows = "", n = 0, lastThink = "", lastText = "";
+  for (const st of steps) {
+    if (st.kind === "tool" && st.tool === "probe" && st.result && !st.result.error) {
+      n++;
+      const a = st.result.aligned ?? 0, d = st.result.displaced ?? 0;
+      rows += `<div class="row"><span class="n">${n}</span>${glyphRow(n, st.input.approach || "")}` +
+              `<span class="fb">→ <b>◉ ${a}</b> aligned · <i>○ ${d}</i> displaced</span></div>`;
+    } else if (st.kind === "tool" && st.tool === "submit_solution" && st.result) {
+      const ok = st.result.opened;
+      rows += `<div class="row"><span class="n">⎙</span>${glyphRow(n, st.input.answer || "")}` +
+              `<span class="fb submit ${ok ? "ok" : "no"}">${ok ? "✓ LOCK OPENS" : "✗ rejected"}</span></div>`;
+    } else if (st.kind === "tool" && st.result && st.result.error) {
+      rows += `<div class="row"><span class="n">!</span><span class="fb submit no">${st.tool}: ${st.result.error}</span></div>`;
+    }
+    if (st.kind === "reason") { lastText = st.text || ""; if (st.thinking) lastThink = st.thinking; }
+  }
+  const badge = `<span class="badge ${s.outcome}">${s.outcome}</span>`;
+  const stats = `<span class="stat">probes <b>${s.probes_used}</b></span>` +
+                `<span class="stat">submits <b>${s.submits_used}</b></span>` +
+                `<span class="stat">left <b>${s.attempts_remaining ?? "-"}</b></span>` +
+                `<span class="stat">tok <b>${s.tokens_in}/${s.tokens_out}</b></span>`;
+  el.innerHTML =
+    `<h2>${m.backend} · ${m.model} ${badge}</h2>` +
+    `<div class="meta">${stats}</div>` +
+    `<div class="board">${rows || '<div class="fb">…</div>'}</div>` +
+    `<div class="think"><div class="label">reasoning</div>${escapeHtml(lastThink || lastText || "-")}</div>`;
+}
+
+function escapeHtml(s) { return (s || "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+function maxSteps() { return Math.max(state.A ? state.A.steps.length : 0, state.B ? state.B.steps.length : 0); }
+
+function render() {
+  renderCol(document.getElementById("colA"), state.A, state.t);
+  renderCol(document.getElementById("colB"), state.B, state.t);
+  document.getElementById("clock").textContent = `step ${state.t} / ${maxSteps()}`;
+}
+
+document.getElementById("step").onclick = () => { if (state.t < maxSteps()) { state.t++; render(); } };
+document.getElementById("reset").onclick = () => { stop(); state.t = 0; render(); };
+document.getElementById("play").onclick = () => { state.timer ? stop() : start(); };
+function start() {
+  if (state.t >= maxSteps()) state.t = 0;
+  document.getElementById("play").textContent = "❚❚ Pause";
+  const tick = () => { if (state.t >= maxSteps()) { stop(); return; } state.t++; render();
+    state.timer = setTimeout(tick, +document.getElementById("speed").value); };
+  tick();
+}
+function stop() { clearTimeout(state.timer); state.timer = null; document.getElementById("play").textContent = "▶ Play"; }
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+
+# Fresh duels land here untracked; the five committed files are the graded
+# evidence the replay page auto-loads. Keep them.
+runs/*
+!runs/claude-42.json
+!runs/gemma-42.json
+!runs/gemma-7.json
+!runs/manifest-42.json
+!runs/manifest-7.json

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "cipher-lock": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "tracer", "serve"],
+      "env": {
+        "TRACER_SERVER_LOG": "1",
+        "TRACER_RUN_LABEL": "claude",
+        "TRACER_LOCK_SEED": "42"
+      }
+    }
+  }
+}

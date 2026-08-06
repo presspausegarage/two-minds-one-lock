@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "backend": "claude",
+    "model": "(via MCP client)",
+    "seed": 42
+  },
+  "steps": [
+    {
+      "kind": "tool",
+      "tool": "probe",
+      "input": {
+        "approach": "AAA"
+      },
+      "result": {
+        "aligned": 2,
+        "displaced": 0,
+        "attempts_remaining": 4
+      }
+    },
+    {
+      "kind": "tool",
+      "tool": "probe",
+      "input": {
+        "approach": "CCC"
+      },
+      "result": {
+        "aligned": 1,
+        "displaced": 0,
+        "attempts_remaining": 4
+      }
+    },
+    {
+      "kind": "tool",
+      "tool": "probe",
+      "input": {
+        "approach": "AAC"
+      },
+      "result": {
+        "aligned": 3,
+        "displaced": 0,
+        "attempts_remaining": 4
+      }
+    },
+    {
+      "kind": "tool",
+      "tool": "submit_solution",
+      "input": {
+        "answer": "AAC"
+      },
+      "result": {
+        "opened": true,
+        "attempts_remaining": 4
+      }
+    },
+    {
+      "kind": "final",
+      "outcome": "opened"
+    }
+  ],
+  "summary": {
+    "backend": "claude",
+    "model": "(via MCP client)",
+    "seed": 42,
+    "outcome": "opened",
+    "probes_used": 3,
+    "submits_used": 1,
+    "attempts_remaining": 4,
+    "turns": 4,
+    "tokens_in": 0,
+    "tokens_out": 0
+  }
+}
