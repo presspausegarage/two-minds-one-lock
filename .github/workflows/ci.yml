@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v7
       # Pinned to the exact release: setup-uv stopped publishing floating major
       # tags after v7, so @v9 does not resolve. Dependabot bumps this.
-      - uses: astral-sh/setup-uv@v9.0.0
+      - uses: astral-sh/setup-uv@v10.3.0
       - run: uv sync --all-extras
       - run: uv run ruff check .
       - run: uv run pytest -q
